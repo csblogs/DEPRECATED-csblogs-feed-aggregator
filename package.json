@@ -1,0 +1,34 @@
+{
+  "name": "csblogs-webjob",
+  "version": "1.0.0",
+  "description": "A periodic RSS/ATOM feed parser for the CS Blogs project",
+  "main": "webjob.js",
+  "dependencies": {
+    "async": "^0.9.0",
+    "feed-read": "^0.0.1",
+    "request": "^2.55.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node webjob.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/csblogs/csblogs-feed-aggregator-azure-webjob"
+  },
+  "keywords": [
+    "RSS",
+    "ATOM",
+    "Aggregator",
+    "CSBlogs",
+    "Webjob",
+    "Cronjob"
+  ],
+  "author": "Daniel Brown",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/csblogs/csblogs-feed-aggregator-azure-webjob/issues"
+  },
+  "homepage": "https://csblogs.com"
+}
