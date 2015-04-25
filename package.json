@@ -5,7 +5,7 @@
   "main": "webjob.js",
   "dependencies": {
     "async": "^0.9.0",
-    "feed-read": "^0.0.1",
+    "feedparser": "^1.0.1",
     "mongoose": "^4.0.2",
     "request": "^2.55.0",
     "validator": "^3.39.0"
