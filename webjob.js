@@ -2,6 +2,7 @@ var feed = require('feed-read');
 var http = require('http');
 var async = require('async');
 var req = require('request');
+var mongoose = require('mongoose');
 var blogger = require('./models/blogger').Blogger;
 
 // Get database connection
