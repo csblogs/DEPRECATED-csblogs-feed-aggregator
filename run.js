@@ -105,4 +105,29 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
 	
 	function insertNewBlog(blogPost, blogger) {
 		var newBlog = new blog({
+			// Author Details
+			userProvider : blogger.userProvider,
+			userId : blogger.userId,
+
+			// Information about blog
+			title: blogPost.title,
+			imageUrl : blogPost.image,
+			summary : blogPost.summary,
+			pubDate : blogPost.pubdate,
+			updateDate : blogPost.date,
+			link : blogPost.link
+		});
+		newBlog.save();
+	}
+	
+	function updateBlog(blogPost, blogPostFromDB, blogger) {
+		blog.update(blogPostFromDB, blogPost, {multi: false}, function(err, numAffected) {
+			if(!err) {
+				console.log('Updated blog \'%s\' sucessfully', blogPost.title);
+			}
+			else {
+				console.log('[ERROR] Error updating \'%s\' \n %j', blogPost.title, err)
+			}
+		})
+	}
 }
