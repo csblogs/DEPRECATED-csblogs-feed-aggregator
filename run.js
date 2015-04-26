@@ -4,6 +4,7 @@ var async = require('async');
 var req = require('request');
 var mongoose = require('mongoose');
 var blogger = require('./models/blogger').Blogger;
+var blog = require('./models/blog').Blog;
 
 // Get database connection
 mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost');
@@ -33,7 +34,7 @@ database.once('open', function (callback) {
 function downloadAllFeeds(allBloggers) {
 	async.each(allBloggers,
 	    function(blogger, done) {
-			downloadFeed(blogger.feedUrl, done);
+			downloadFeed(blogger, done);
 	    }, 
 	    function(err) {
 	        if(!err) {
@@ -47,8 +48,8 @@ function downloadAllFeeds(allBloggers) {
 	);
 }
 
-function downloadFeed(feedUrl, callback) {
-	var req = request(feedUrl, {timeout: 10000, pool: false});
+function downloadFeed(blogger, callback) {
+	var req = request(blogger.feedUrl, {timeout: 10000, pool: false});
 	req.setMaxListeners(50);
 	  // Some feeds do not respond without user-agent and accept headers.
 	req.setHeader('user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36')
@@ -68,11 +69,40 @@ function downloadFeed(feedUrl, callback) {
     .on('readable', function() {
       var stream = this, item;
       while (item = stream.read()) {
-		  console.log("%j", item);
-		  console.log('\n\n\n\n\n\n\n');
+		  insertBlogPostToDBIfNew(blogger, item);
       }
     })
 	.on('end', function() {
 		callback();
 	});;
+}
+
+function insertBlogPostToDBIfNew(blogger, blogPost) {
+    blog.findOne({userProvider: blogger.userProvider, userId: blogger.userId, pubDate: blogPost.pubdate}, function(error, blogPostFromDB) {
+        if (error) {
+			console.error("[ERROR] Looking up blog \n %j \n\n got error: \n %j \n\n\n\n", blogPost, err);
+		}
+		else {
+			if(!blogPostFromDB) {
+				//No blog, add as new
+				console.log('Adding \'%s\' as new blog post', blogPost.title);
+				insertNewBlog(blogPost, blogger);
+			}
+			else {
+				//Blog already exists. Has it been updated?
+				if(blogPost.date != blogPostFromDB.updateDate) {
+					//Blog has been updated
+					console.log('Updating \'%s\'', blogPost.title);
+					updateBlog(blogPost, blogPostFromDB, blogger);
+				}
+				else {
+					//Blog has not been updated
+					console.log('\'%s\' is already in DB and will not be updated.', blogPost.title);
+				}
+			}
+		}
+	});
+	
+	function insertNewBlog(blogPost, blogger) {
+		var newBlog = new blog({
 }
