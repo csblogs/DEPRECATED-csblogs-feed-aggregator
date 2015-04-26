@@ -117,7 +117,15 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
 			updateDate : blogPost.date,
 			link : blogPost.link
 		});
-		newBlog.save();
+		
+		if(blogPost["media:content"]) {
+			//Fix to get feature/first image from wordpress blogs
+			try {
+				newBlog.imageUrl = blogPost["media:content"][1]["@"].url;
+			}
+			catch(err) {} //Wordpress blog, but no first image. Just ignore this exception.
+		}
+		newBlog.save();	
 	}
 	
 	function updateBlog(blogPost, blogPostFromDB, blogger) {
