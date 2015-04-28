@@ -5,6 +5,7 @@ var req = require('request');
 var mongoose = require('mongoose');
 var blogger = require('./models/blogger').Blogger;
 var blog = require('./models/blog').Blog;
+var jsdom = require("jsdom");
 
 // Get database connection
 mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost');
@@ -111,20 +112,13 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
 
 			// Information about blog
 			title: blogPost.title,
-			imageUrl : blogPost.image,
+			imageUrl : grabImage(blogPost),
 			summary : blogPost.summary,
 			pubDate : blogPost.pubdate,
 			updateDate : blogPost.date,
 			link : blogPost.link
 		});
 		
-		if(blogPost["media:content"]) {
-			//Fix to get feature/first image from wordpress blogs
-			try {
-				newBlog.imageUrl = blogPost["media:content"][1]["@"].url;
-			}
-			catch(err) {} //Wordpress blog, but no first image. Just ignore this exception.
-		}
 		newBlog.save();	
 	}
 	
@@ -137,5 +131,35 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
 				console.log('[ERROR] Error updating \'%s\' \n %j', blogPost.title, err)
 			}
 		})
+	}
+	
+	function grabImage(blogPost) {
+		if(blogPost.image.url) {
+			//If the RSS/ATOM feed is nice enough to tell us an image to use, use it.
+			return blogPost.image.url.split("?")[0]; //This fixes the fact that Wordpress tries to give us a small thumbnail 
+													 //by attaching a width query. ?w=150 for example
+		}
+		
+		if(blogPost.description) {
+			//Search the HTML of the blog post for the first image element
+			var imagesInHTML = jsdom.env(
+			  blogPost.description,
+			  function (errors, window) {
+			    var imgs = window.document.getElementsByTagName('img');
+				if(imgs && imgs.length > 0) {
+					var firstImage = imgs[0].getAttribute('src');
+					return firstImage;
+				}
+			  }
+			);
+		}
+		
+		if(blogPost["media:content"]) {
+			//UNUSED Fix to get feature/first image from wordpress blogs
+			try {
+				return blogPost["media:content"][1]["@"].url;
+			}
+			catch(err) {} //Wordpress blog, but no first image. Just ignore this exception.
+		}
 	}
 }
