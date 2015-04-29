@@ -8,11 +8,11 @@ var blogSchema = new Schema({
   userId : String,
 
   // Information about blog
-  title: String,
+  title : String,
   imageUrl : String,
   summary : String,
-  pubDate : String,
-  updateDate : String,
+  pubDate : Date,
+  updateDate : Date,
   link : String
 });
 
