@@ -101,7 +101,7 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                 insertNewBlog(blogPost, blogger, done);
             } else {
                 //Blog already exists. Has it been updated?
-                if (blogPost.date != blogPostFromDB.updateDate) {
+                if (blogPost.date.getTime() != blogPostFromDB.updateDate.getTime()) {
                     //Blog has been updated
                     console.log('Updating \'%s\'', blogPost.title);
                     updateBlog(blogPost, blogPostFromDB, blogger, done);
@@ -135,17 +135,12 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
     }
 
     function updateBlog(blogPost, blogPostFromDB, blogger, done) {
-        blog.update(blogPostFromDB, blogPost, {
-            multi: false
-        }, function(err, numAffected) {
-            if (!err) {
-                console.log('Updated blog \'%s\' sucessfully', blogPost.title);
-                done();
-            } else {
-                console.log('[ERROR] Error updating \'%s\' \n %j', blogPost.title, err)
-                done();
-            }
-        })
+        //This can be implemented much more effeciency...
+        //However, am reusing insertNewBlog() because its not quite as simple as updating fields.
+        //Have to re-grab images etc.
+        blog.find(blogPostFromDB).remove(function() {
+            insertNewBlog(blogPost, blogger, done);
+        });   
     }
 
     function grabImage(blogPost, done) {
