@@ -55,30 +55,38 @@ function downloadFeed(blogger, callback) {
     // Some feeds do not respond without user-agent and accept headers.
     req.setHeader('user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36')
     req.setHeader('accept', 'text/html,application/xhtml+xml');
+    
+    var items = [];
 
     req.on('error', function(error) {
         console.error(error);
     })
-        .pipe(new FeedParser())
-        .on('error', function(error) {
+    .pipe(new FeedParser())
+    .on('error', function(error) {
         console.error(error);
     })
-        .on('meta', function(meta) {
-        console.log('===== Downloading %s =====', meta.title);
+    .on('meta', function(meta) {
+        //console.log('===== Downloading %s =====', meta.title);
+        //We dont do anything with meta... yet.
+        //We no longer print out the Downloading $BLOGGERNAME string because things are downloaded async, not in an order
+        //which this string suggests...
     })
-        .on('readable', function() {
-        var stream = this,
-            item;
+    .on('readable', function() {
+        var stream = this, item;
         while (item = stream.read()) {
-            insertBlogPostToDBIfNew(blogger, item);
+            items.push(item);
         }
     })
-        .on('end', function() {
-        callback();
+    .on('end', function() {
+        async.each(items, function(item, done) {
+            insertBlogPostToDBIfNew(blogger, item, done);
+        }, function(err) {
+            callback();
+        });
     });;
 }
 
-function insertBlogPostToDBIfNew(blogger, blogPost) {
+function insertBlogPostToDBIfNew(blogger, blogPost, done) {
     blog.findOne({
         userProvider: blogger.userProvider,
         userId: blogger.userId,
@@ -90,13 +98,13 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
             if (!blogPostFromDB) {
                 //No blog, add as new
                 console.log('Adding \'%s\' as new blog post', blogPost.title);
-                insertNewBlog(blogPost, blogger);
+                insertNewBlog(blogPost, blogger, done);
             } else {
                 //Blog already exists. Has it been updated?
                 if (blogPost.date != blogPostFromDB.updateDate) {
                     //Blog has been updated
                     console.log('Updating \'%s\'', blogPost.title);
-                    updateBlog(blogPost, blogPostFromDB, blogger);
+                    updateBlog(blogPost, blogPostFromDB, blogger, done);
                 } else {
                     //Blog has not been updated
                     console.log('\'%s\' is already in DB and will not be updated.', blogPost.title);
@@ -105,62 +113,60 @@ function insertBlogPostToDBIfNew(blogger, blogPost) {
         }
     });
 
-    function insertNewBlog(blogPost, blogger) {
-        var newBlog = new blog({
-            // Author Details
-            userProvider: blogger.userProvider,
-            userId: blogger.userId,
-
-            // Information about blog
-            title: blogPost.title,
-            imageUrl: grabImage(blogPost),
-            summary: blogPost.summary,
-            pubDate: setDate(blogPost.pubdate),
-            updateDate: setDate(blogPost.date),
-            link: blogPost.link
+    function insertNewBlog(blogPost, blogger, done) { 
+        grabImage(blogPost, function (image) {
+            var newBlog = new blog({
+                // Author Details
+                userProvider: blogger.userProvider,
+                userId: blogger.userId,
+    
+                // Information about blog
+                title: blogPost.title,
+                imageUrl: image,
+                summary: blogPost.summary,
+                pubDate: setDate(blogPost.pubdate),
+                updateDate: setDate(blogPost.date),
+                link: blogPost.link
+            });
+    
+            newBlog.save(); 
+            done();
         });
-
-        newBlog.save();
     }
 
-    function updateBlog(blogPost, blogPostFromDB, blogger) {
+    function updateBlog(blogPost, blogPostFromDB, blogger, done) {
         blog.update(blogPostFromDB, blogPost, {
             multi: false
         }, function(err, numAffected) {
             if (!err) {
                 console.log('Updated blog \'%s\' sucessfully', blogPost.title);
+                done();
             } else {
                 console.log('[ERROR] Error updating \'%s\' \n %j', blogPost.title, err)
+                done();
             }
         })
     }
 
-    function grabImage(blogPost) {
+    function grabImage(blogPost, done) {
         if ((blogPost.image) && (blogPost.image.url)) {
             //If the RSS/ATOM feed is nice enough to tell us an image to use, use it.
-            return blogPost.image.url.split("?")[0]; //This fixes the fact that Wordpress tries to give us a small thumbnail 
+            done(blogPost.image.url.split("?")[0]); //This fixes the fact that Wordpress tries to give us a small thumbnail 
             //by attaching a width query. ?w=150 for example
         }
-
-        if (blogPost.description) {
-            //Search the HTML of the blog post for the first image element
-            var imagesInHTML = jsdom.env(
+        else {
+            jsdom.env(
                 blogPost.description,
                 function(errors, window) {
                     var imgs = window.document.getElementsByTagName('img');
-                    if (imgs && imgs.length > 0) {
-                        var firstImage = imgs[0].getAttribute('src');
-                        return firstImage;
+                    if (imgs && !errors && imgs.length > 0) {
+                        done(imgs[0].getAttribute('src').split("?")[0]);
+                    }
+                    else {
+                        done(null); //An error occured or no images in post
                     }
                 }
             );
-        }
-
-        if (blogPost["media:content"]) {
-            //UNUSED Fix to get feature/first image from wordpress blogs
-            try {
-                return blogPost["media:content"][1]["@"].url;
-            } catch (err) {} //Wordpress blog, but no first image. Just ignore this exception.
         }
     }
     
