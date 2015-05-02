@@ -1,3 +1,5 @@
+"use strict";
+
 var FeedParser = require('feedparser');
 var request = require('request')
 var async = require('async');
@@ -13,12 +15,12 @@ mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost')
 var database = mongoose.connection;
 database.on('error', console.error.bind(console, 'MongoDB Connection Error:'));
 database.once('open', function(callback) {
-    console.log('Database connection established successfully.')
+    console.log('[INFO] Database connection established successfully.');
 
     // Get all feed URLs
     blogger.find({}, function(error, allBloggers) {
         if (error) {
-            console.log("[FATAL] %j", err);
+            console.log("[FATAL] %j", error);
         } else {
             if (!allBloggers) {
                 console.log("[WARN] No bloggers in DB");
@@ -30,20 +32,24 @@ database.once('open', function(callback) {
 });
 
 // Download all RSS/ATOM feeds and process them.
+var changesOccured = 0;
 function downloadAllFeeds(allBloggers) {
-    async.each(allBloggers,
-               function(blogger, done) {
+    async.each(allBloggers, function(blogger, done) {
         downloadFeed(blogger, done);
     },
-               function(err) {
+    function(err) {
         if (!err) {
-            console.log('All feeds downloaded, parsed and new items added to db');
+            if(changesOccured > 0) {
+                console.log('[END] %d changes were made to database...');
+            }
+            else {
+                console.log('[END] No changes were made to the Database');
+            }
             process.exit();
         } else {
             console.error('[FATAL] %j', err);
         }
-    }
-              );
+    });
 }
 
 function downloadFeed(blogger, callback) {
@@ -52,6 +58,7 @@ function downloadFeed(blogger, callback) {
         pool: false
     });
     req.setMaxListeners(50);
+    
     // Some feeds do not respond without user-agent and accept headers.
     req.setHeader('user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36')
     req.setHeader('accept', 'text/html,application/xhtml+xml');
@@ -66,10 +73,10 @@ function downloadFeed(blogger, callback) {
         console.error(error);
     })
     .on('meta', function(meta) {
-        //console.log('===== Downloading %s =====', meta.title);
-        //We dont do anything with meta... yet.
-        //We no longer print out the Downloading $BLOGGERNAME string because things are downloaded async, not in an order
-        //which this string suggests...
+        //if(meta["rss:lastbuilddate"] && meta["rss:lastbuilddate"]["#"]) {
+            //We could use meta["rss:lastbuilddate"]["#"] to determine whether to bother even parsing the feed.
+            //This would require another db to hold lastbuilddates so I haven't implemented it yet 
+        //}
     })
     .on('readable', function() {
         var stream = this, item;
@@ -97,17 +104,17 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
         } else {
             if (!blogPostFromDB) {
                 //No blog, add as new
-                console.log('Adding \'%s\' as new blog post', blogPost.title);
+                console.log('[INFO] Adding \'%s\' as new blog post', blogPost.title);
                 insertNewBlog(blogPost, blogger, done);
             } else {
                 //Blog already exists. Has it been updated?
                 if (blogPost.date.getTime() != blogPostFromDB.updateDate.getTime()) {
                     //Blog has been updated
-                    console.log('Updating \'%s\'', blogPost.title);
+                    console.log('[INFO] Updating \'%s\'', blogPost.title);
                     updateBlog(blogPost, blogPostFromDB, blogger, done);
                 } else {
                     //Blog has not been updated
-                    console.log('\'%s\' is already in DB and will not be updated.', blogPost.title);
+                    console.log('[INFO] \'%s\' is already in DB and will not be updated.', blogPost.title);
                     done();
                 }
             }
@@ -131,6 +138,7 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
             });
     
             newBlog.save(); 
+            changesOccured++;
             done();
         });
     }
