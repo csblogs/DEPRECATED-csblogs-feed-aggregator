@@ -108,6 +108,7 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                 } else {
                     //Blog has not been updated
                     console.log('\'%s\' is already in DB and will not be updated.', blogPost.title);
+                    done();
                 }
             }
         }
