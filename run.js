@@ -169,13 +169,17 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                         var firstImageUrl = new URI(imgs[0].getAttribute('src'));
                         var blogPostLink = new URI(blogPost.link);
                        
-                        var image = "";
+                        // Make all URLs absolute. We're not in the same relative positions as the blogs themselves, so relative links won't work
+                        var image;
                         if(firstImageUrl.is("relative")) {
-                            image = blogPostLink.protocol() + "://" + blogPostLink.domain() + "/" + firstImageUrl.toString();
+                            image = new URI(blogPostLink.protocol() + "://" + blogPostLink.domain() + "/" + firstImageUrl.toString());
                         }
                         else {
-                            image = firstImageUrl.toString();
+                            image = new URI(firstImageUrl.toString());
                         }
+                        
+                        // Remove the ?w=546&h=123 style width and height tags provided by wordpress blogs
+                        image.removeSearch(['w', 'h']);
                         
                         done(image);
                     }
