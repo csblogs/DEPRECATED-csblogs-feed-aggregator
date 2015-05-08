@@ -180,6 +180,11 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                         
                         // Remove the ?w=546&h=123 style width and height tags provided by wordpress blogs
                         image.removeSearch(['w', 'h']);
+						
+						// Remove the "Add a comment" images added to feeds by wordpress.com blogs
+						if(image.toString().indexOf("http://feeds.wordpress.com/1.0/comments") > -1) {
+							image = null;
+						}
                         
                         done(image);
                     }
