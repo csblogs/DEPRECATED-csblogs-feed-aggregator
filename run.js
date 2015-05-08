@@ -8,6 +8,7 @@ var mongoose = require('mongoose');
 var blogger = require('./models/blogger').Blogger;
 var blog = require('./models/blog').Blog;
 var jsdom = require("jsdom");
+var URI = require('URIjs'); 
 
 // Get database connection
 mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost');
@@ -40,7 +41,7 @@ function downloadAllFeeds(allBloggers) {
     function(err) {
         if (!err) {
             if(changesOccured > 0) {
-                console.log('[END] %d changes were made to database...');
+                console.log('[END] %d changes were made to database...', changesOccured);
             }
             else {
                 console.log('[END] No changes were made to the Database');
@@ -100,7 +101,7 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
         pubDate: blogPost.pubdate
     }, function(error, blogPostFromDB) {
         if (error) {
-            console.error("[ERROR] Looking up blog \n %j \n\n got error: \n %j \n\n\n\n", blogPost, err);
+            console.error("[ERROR] Looking up blog \n %j \n\n got error: \n %j \n\n\n\n", blogPost, error);
         } else {
             if (!blogPostFromDB) {
                 //No blog, add as new
@@ -163,8 +164,20 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                 blogPost.description,
                 function(errors, window) {
                     var imgs = window.document.getElementsByTagName('img');
+                    
                     if (imgs && !errors && imgs.length > 0) {
-                        done(imgs[0].getAttribute('src').split("?")[0]);
+                        var firstImageUrl = new URI(imgs[0].getAttribute('src'));
+                        var blogPostLink = new URI(blogPost.link);
+                       
+                        var image = "";
+                        if(firstImageUrl.is("relative")) {
+                            image = blogPostLink.protocol() + "://" + blogPostLink.domain() + "/" + firstImageUrl.toString();
+                        }
+                        else {
+                            image = firstImageUrl.toString();
+                        }
+                        
+                        done(image);
                     }
                     else {
                         done(null); //An error occured or no images in post
