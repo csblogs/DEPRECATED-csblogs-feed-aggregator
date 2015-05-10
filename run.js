@@ -172,7 +172,7 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
                         // Make all URLs absolute. We're not in the same relative positions as the blogs themselves, so relative links won't work
                         var image;
                         if(firstImageUrl.is("relative")) {
-                            image = new URI(blogPostLink.protocol() + "://" + blogPostLink.domain() + "/" + firstImageUrl.toString());
+                            image = new URI(blogPostLink.protocol() + "://" + blogPostLink.domain() + firstImageUrl.toString());
                         }
                         else {
                             image = new URI(firstImageUrl.toString());
