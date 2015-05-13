@@ -7,8 +7,8 @@ var req = require('request');
 var mongoose = require('mongoose');
 var blogger = require('./models/blogger').Blogger;
 var blog = require('./models/blog').Blog;
-var jsdom = require("jsdom");
 var URI = require('URIjs'); 
+var cheerio = require('cheerio');
 
 // Get database connection
 mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost');
@@ -41,10 +41,10 @@ function downloadAllFeeds(allBloggers) {
     function(err) {
         if (!err) {
             if(changesOccured > 0) {
-                console.log('[END] %d changes were made to database...', changesOccured);
+                console.log('[END] %d changes were made to the database...', changesOccured);
             }
             else {
-                console.log('[END] No changes were made to the Database');
+                console.log('[END] No changes were made to the database');
             }
             process.exit();
         } else {
@@ -160,39 +160,40 @@ function insertBlogPostToDBIfNew(blogger, blogPost, done) {
             //by attaching a width query. ?w=150 for example
         }
         else {
-            jsdom.env(
-                blogPost.description,
-                function(errors, window) {
-                    var imgs = window.document.getElementsByTagName('img');
-                    
-                    if (imgs && !errors && imgs.length > 0) {
-                        var firstImageUrl = new URI(imgs[0].getAttribute('src'));
-                        var blogPostLink = new URI(blogPost.link);
-                       
-                        // Make all URLs absolute. We're not in the same relative positions as the blogs themselves, so relative links won't work
-                        var image;
-                        if(firstImageUrl.is("relative")) {
-                            image = new URI(blogPostLink.protocol() + "://" + blogPostLink.domain() + firstImageUrl.toString());
-                        }
-                        else {
-                            image = new URI(firstImageUrl.toString());
-                        }
-                        
-                        // Remove the ?w=546&h=123 style width and height tags provided by wordpress blogs
-                        image.removeSearch(['w', 'h']);
+			var $ = cheerio.load(blogPost.description);
+			var firstImageSrc = null;
+            var firstImage = $('img').get(0);
+            
+            if(firstImage != null && firstImage.attribs != null && firstImage.attribs.src != null) {
+                firstImageSrc = firstImage.attribs.src;
+            }
 						
-						// Remove the "Add a comment" images added to feeds by wordpress.com blogs
-						if(image.toString().indexOf("http://feeds.wordpress.com/1.0/comments") > -1) {
-							image = null;
-						}
-                        
-                        done(image);
-                    }
-                    else {
-                        done(null); //An error occured or no images in post
-                    }
+            if (firstImageSrc != null) {
+                var firstImageUrl = new URI(firstImageSrc);
+                var blogPostLink = new URI(blogPost.link);
+               
+                // Make all URLs absolute. We're not in the same relative positions as the blogs themselves, so relative links won't work
+                var image;
+                if(firstImageUrl.is("relative")) {
+                    image = new URI(blogPostLink.protocol() + "://" + blogPostLink.domain() + firstImageUrl.toString());
                 }
-            );
+                else {
+                    image = new URI(firstImageUrl.toString());
+                }
+                
+                // Remove the ?w=546&h=123 style width and height tags provided by wordpress blogs
+                image.removeSearch(['w', 'h']);
+				
+				// Remove the "Add a comment" images added to feeds by wordpress.com blogs
+				if(image.toString().indexOf("http://feeds.wordpress.com/1.0/comments") > -1) {
+					image = null;
+				}
+                
+                done(image);
+            }
+            else {
+                done(null); //An error occured or no images in post
+            }
         }
     }
     
