@@ -1,4 +1,4 @@
-# Computer Science Blogs
+# Computer Science Blogs [![Build Status](https://travis-ci.org/csblogs/csblogs-web-app.svg?branch=master)](https://travis-ci.org/csblogs/csblogs-web-app)
 ## Microsoft Azure RSS/ATOM Feed Aggregation Webjob
 
 This is the repository for the Azure Webjob (cronjob compatible) RSS/ATOM feed aggregator which powers CS Blogs.
