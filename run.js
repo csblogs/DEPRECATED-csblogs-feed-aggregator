@@ -9,6 +9,7 @@ var blogger = require('./models/blogger').Blogger;
 var blog = require('./models/blog').Blog;
 var URI = require('URIjs'); 
 var cheerio = require('cheerio');
+var colors = require('colors/safe');
 
 // Get database connection
 mongoose.connect(process.env.CUSTOMCONNSTR_MONGODB_URI || 'mongodb://localhost');
@@ -48,7 +49,7 @@ function downloadAllFeeds(allBloggers) {
             }
             process.exit();
         } else {
-            console.error('[FATAL] %j', err);
+            console.error(colors.red('[FATAL] %j'), err);
         }
     });
 }
@@ -67,11 +68,11 @@ function downloadFeed(blogger, callback) {
     var items = [];
 
     req.on('error', function(error) {
-        console.error(error);
+        console.error(colors.red("[ERROR] Connection Error on %s %s's feed: (%s)"), blogger.firstName, blogger.lastName, error);
     })
     .pipe(new FeedParser())
     .on('error', function(error) {
-        console.error(error);
+        console.error(colors.red("[ERROR] Feed Parser Error on %s %s's feed: (%s)"), blogger.firstName, blogger.lastName, error);
     })
     .on('meta', function(meta) {
         //if(meta["rss:lastbuilddate"] && meta["rss:lastbuilddate"]["#"]) {
