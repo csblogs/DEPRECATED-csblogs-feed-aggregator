@@ -68,12 +68,10 @@ function downloadFeed(blogger, callback) {
 
     req.on('error', function(error) {
         console.error(error);
-        callback();
     })
     .pipe(new FeedParser())
     .on('error', function(error) {
         console.error(error);
-        callback();
     })
     .on('meta', function(meta) {
         //if(meta["rss:lastbuilddate"] && meta["rss:lastbuilddate"]["#"]) {
